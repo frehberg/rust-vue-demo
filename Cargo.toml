@@ -1,0 +1,20 @@
+[package]
+name = "rust-vue"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.6", features = ["http1", "ws", "headers"] }
+headers = "0.3"
+tokio = { version = "1.0", features = ["full"] }
+tower-http = { version = "0.3.0", features = ["fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+local-ip-address = "0.4.9"
+rust-embed = "6.4.2"
+mime_guess = "2.0"
+serde_json = "1.0"
+serde = { version = "^1.0", features = ["derive"] }
+
+[build-dependencies]
+npm_rs = "1.0.0"

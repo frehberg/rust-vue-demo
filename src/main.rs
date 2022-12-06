@@ -24,7 +24,7 @@ use rust_embed::RustEmbed;
 #[folder = "webui/dist/"]
 struct Assets;
 
-/// Overall state of the audio player
+// DTO - Data Transfer Object
 #[derive(Serialize, Deserialize, Debug)]
 struct AppData {
     service_url: String,

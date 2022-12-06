@@ -19,16 +19,28 @@ This project demonstrates the integration of npm/vue into a rust axum web-servic
 
 ## Usage
 
+Download the project folder from https://github.com/frehberg/rust-vue-demo
+```
+git clone https://github.com/frehberg/rust-vue-demo
+```
+
+Initialize the npm dependencies of the webui frontend
+```
+cd rust-vue-demo/webui; npm install
+```
+
 Build the project
 ```shell
+cd rust-vue-demo/
 cargo build
 ```
 
 Start the web-service
 ```shell
+cd rust-vue-demo/
 cargo run
 ```
 
-Connect to web-service at http://127.0.0.1:3000
+Connect with web-browser to http://127.0.0.1:3000
 
 

@@ -43,4 +43,22 @@ cargo run
 
 Connect with web-browser to http://127.0.0.1:3000
 
+## Developing the Vue Web Frontend
+
+Generate the assets from Vue templates
+```shell
+cd rust-vue-demo/webui
+npm install; npm run build
+```
+Start the web-service locally listening at port 8080
+```shell
+cd rust-vue-demo/webui
+npm run serve
+```
+
+Connect with web-browser to `http://localhost:8080`
+
+Any time the files in folder `rust-vue-demo/webui/src/` are modified, the npm-build-process will be triggered and the browser will perform a reload.
+
+
 

@@ -14,7 +14,6 @@ use std::{net::SocketAddr};
 use tower_http::{
     trace::{DefaultMakeSpan, TraceLayer},
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use local_ip_address::local_ip;
 use serde::{Deserialize, Serialize};
 
@@ -75,14 +74,6 @@ async fn not_found() -> Response {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "example_websockets=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     // build our application with some routes
     let app = Router::new()
         .fallback(static_handler)
@@ -118,6 +109,32 @@ async fn ws_handler(
 }
 
 async fn handle_socket(mut socket: WebSocket) {
+	// TODO: use select! to handle incoming messages and timeouts, and canbus messages 
+    // if let Some(msg) = socket.recv().await {
+    //     if let Ok(msg) = msg {
+    //         match msg {
+    //             Message::Text(t) => {
+    //                 println!("client sent str: {:?}", t);
+    //             }
+    //             Message::Binary(_) => {
+    //                 println!("client sent binary data");
+    //             }
+    //             Message::Ping(_) => {
+    //                 println!("socket ping");
+    //             }
+    //             Message::Pong(_) => {
+    //                 println!("socket pong");
+    //             }
+    //             Message::Close(_) => {
+    //                 println!("client disconnected");
+    //                 return;
+    //             }
+    //         }
+    //     } else {
+    //         println!("client disconnected");
+    //         return;
+    //     }
+    // }
     let mut counter = 0;
     loop {
         // Serialize data to a JSON string.

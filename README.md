@@ -47,6 +47,9 @@ cargo run
 
 Connect with web-browser to http://127.0.0.1:3000
 
+The Web-page will open in browser and will establish a websocket connection to http://127.0.0.1:3000/ws. This websocket is used to send data updates between webui and web-service.
+
+
 ## Developing the Vue Web Frontend
 
 Generate the assets from Vue templates

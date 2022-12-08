@@ -1,21 +1,19 @@
 use axum::{
+    body::{boxed, Full},
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         TypedHeader,
     },
-    body::{boxed, Full},
     http::{header, StatusCode, Uri},
-    response::Response,
     response::IntoResponse,
-    routing::{get},
+    response::Response,
+    routing::get,
     Router,
-};
-use std::{net::SocketAddr};
-use tower_http::{
-    trace::{DefaultMakeSpan, TraceLayer},
 };
 use local_ip_address::local_ip;
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 use rust_embed::RustEmbed;
 
@@ -45,7 +43,10 @@ async fn static_handler(uri: Uri) -> Response {
             let body = boxed(Full::from(content.data));
             let mime = mime_guess::from_path(path).first_or_octet_stream();
 
-            Response::builder().header(header::CONTENT_TYPE, mime.as_ref()).body(body).unwrap()
+            Response::builder()
+                .header(header::CONTENT_TYPE, mime.as_ref())
+                .body(body)
+                .unwrap()
         }
         None => {
             if path.contains('.') {
@@ -62,14 +63,20 @@ async fn index_html() -> Response {
         Some(content) => {
             let body = boxed(Full::from(content.data));
 
-            Response::builder().header(header::CONTENT_TYPE, "text/html").body(body).unwrap()
+            Response::builder()
+                .header(header::CONTENT_TYPE, "text/html")
+                .body(body)
+                .unwrap()
         }
         None => not_found().await,
     }
 }
 
 async fn not_found() -> Response {
-    Response::builder().status(StatusCode::NOT_FOUND).body(boxed(Full::from("404"))).unwrap()
+    Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .body(boxed(Full::from("404")))
+        .unwrap()
 }
 
 #[tokio::main]
@@ -77,7 +84,6 @@ async fn main() {
     // build our application with some routes
     let app = Router::new()
         .fallback(static_handler)
-
         // routes are matched from bottom to top, so we have to put `nest` at the
         // top since it matches all routes
         .route("/ws", get(ws_handler))
@@ -86,7 +92,6 @@ async fn main() {
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         );
-
 
     // run it with hyper
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -108,50 +113,73 @@ async fn ws_handler(
     ws.on_upgrade(handle_socket)
 }
 
+fn create_txt(counter: u32, msg: &str) -> Result<String, ()> {
+    // Serialize data to a JSON string.
+    let my_local_ip = local_ip().unwrap();
+    let data = AppData {
+        service_url: format!("http://{}:3000", my_local_ip),
+        counter: counter,
+        body: msg.to_string(),
+    };
+
+    if let Ok(txt) = serde_json::to_string(&data) {
+        return Ok(txt);
+    }
+    return Err(());
+}
+
 async fn handle_socket(mut socket: WebSocket) {
-	// TODO: use select! to handle incoming messages and timeouts, and canbus messages 
-    // if let Some(msg) = socket.recv().await {
-    //     if let Ok(msg) = msg {
-    //         match msg {
-    //             Message::Text(t) => {
-    //                 println!("client sent str: {:?}", t);
-    //             }
-    //             Message::Binary(_) => {
-    //                 println!("client sent binary data");
-    //             }
-    //             Message::Ping(_) => {
-    //                 println!("socket ping");
-    //             }
-    //             Message::Pong(_) => {
-    //                 println!("socket pong");
-    //             }
-    //             Message::Close(_) => {
-    //                 println!("client disconnected");
-    //                 return;
-    //             }
-    //         }
-    //     } else {
-    //         println!("client disconnected");
-    //         return;
-    //     }
-    // }
     let mut counter = 0;
     loop {
-        // Serialize data to a JSON string.
-        let my_local_ip = local_ip().unwrap();
-        counter += 1;
-        let data =  AppData { service_url: format!("http://{}:3000", my_local_ip), counter: counter, body: "Hi".to_string()};
-
-        if let Ok(txt) = serde_json::to_string(&data) {
-            if socket
-                .send(Message::Text(txt))
-                .await
-                .is_err()
-            {
-                println!("client disconnected");
-                return;
+        tokio::select! {
+            Some(msg)  = socket.recv() => {
+                 if let Ok(msg) = msg {
+                     match msg {
+                         Message::Text(t) => {
+                             println!("client sent str: {:?}", t);
+                             counter += 1;
+                             if let Ok(txt) = create_txt(counter, "Hello, too!") {
+                                 if socket
+                                    .send(Message::Text(txt))
+                                    .await
+                                    .is_err() {
+                                    println!("client disconnected");
+                                    return;
+                                 }
+                            }
+                         }
+                         Message::Binary(_) => {
+                            println!("client sent binary data");
+                         }
+                         Message::Ping(_) => {
+                             println!("socket ping");
+                         }
+                         Message::Pong(_) => {
+                             println!("socket pong");
+                         }
+                         Message::Close(_) => {
+                             println!("client disconnected");
+                             return;
+                         }
+                     }
+                 } else {
+                     println!("client disconnected");
+                     return;
+                 }
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+                 println!("timer trigger");
+                 counter += 1;
+               if let Ok(txt) = create_txt(counter, "Hi") {
+                 if socket
+                    .send(Message::Text(txt))
+                    .await
+                    .is_err() {
+                    println!("client disconnected");
+                    return;
+                 }
+                    }
             }
         }
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
 }

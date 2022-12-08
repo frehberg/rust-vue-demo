@@ -10,9 +10,9 @@ fn main() {
         .init_env()
         .install(None)
         .run("build")
-        .exec().unwrap();
+        .exec()
+        .unwrap();
     // rebuild if build.rs is changed
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=webui/package.json");
     println!("cargo:rerun-if-changed=webui/src/*");
 }

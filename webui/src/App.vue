@@ -5,7 +5,7 @@
     <br />
     Message Counter: {{ counter }}
     <br />
-    <button v-on:click="sendMessage('hello')">Send Message</button>
+    <button v-on:click="sendMessage('hello')">Send Hello</button>
     <br />
     <p style="white-space: pre-line">
     <br />

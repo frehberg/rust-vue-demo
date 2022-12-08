@@ -13,6 +13,8 @@ fn main() {
         .exec()
         .unwrap();
     // rebuild if build.rs is changed
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=webui/src/*");
+    build_deps::rerun_if_changed_paths( "build.rs" ).unwrap();
+    build_deps::rerun_if_changed_paths( "webui/package.json" ).unwrap();
+    build_deps::rerun_if_changed_paths( "webui/src/" ).unwrap();
+    build_deps::rerun_if_changed_paths( "webui/src/*" ).unwrap();
 }

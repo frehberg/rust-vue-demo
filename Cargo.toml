@@ -16,3 +16,5 @@ serde = { version = "^1.0", features = ["derive"] }
 
 [build-dependencies]
 npm_rs = "1.0.0"
+build-deps = "0.1.4"
+

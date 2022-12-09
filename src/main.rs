@@ -17,6 +17,40 @@ use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 use rust_embed::RustEmbed;
 
+use aquamarine::aquamarine;
+
+/// Diagrams
+///
+/// Build Process
+#[cfg_attr(doc, aquamarine)]
+/// ```mermaid
+/// graph
+///    s([Rust Source]) --> m[[Rust macro processor]]
+///    v([Vue App]) --> b[[build-script invokes npm build]]
+///    i([Rust intermediate code]) --> f([executable])
+///    subgraph rustc[Rust Compiler]
+///       b -. generate files .-> d([webui/dist])
+///       d -. include .-> m
+///       m --> i
+///    end
+/// ```
+/// Client Server Communication
+/// ```mermaid
+/// graph LR
+///      u[[WebUI]] --> s[[HTTP Service]]
+///      u <-. websocket .-> s
+///
+///      subgraph browser[Browser]
+///         u
+///      end
+///
+///      subgraph rustc[Web Service]
+///      s -. read .-> db([Embedded Assets webui/dist])
+///      end
+/// ```
+
+mod diagrams {}
+
 #[derive(RustEmbed)]
 #[folder = "webui/dist/"]
 struct Assets;

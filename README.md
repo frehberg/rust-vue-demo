@@ -10,7 +10,7 @@ The Vue web framework does not require any template rendering during runtime in 
 
 ## Features
 * Vue project code is located in folder `webui/`
-* The `cargo build` will trigger the vue npm build process ('npm_rs'), the resultin g HTML code will be placed in `webui/dist/`
+* The `cargo build` will trigger the vue npm build process ('npm_rs'), the resulting HTML code will be placed in `webui/dist/`
 * The vue JavaScript assets of `webui/dist/` will be embedded into the Rust code (`rust_embed`)
 * No costly template rendering of web framework within web-service; all asset files are sent to web-brwoser as is. Costly template subsitution is performed during npm compile time and DOM tree manipulation is performed by web-browser.
 * The compact executable will be created from Rust code

@@ -45,8 +45,7 @@ export default {
   created: function() {
     let vm = this
     console.log("Starting connection to WebSocket Server")
-    this.connection = new WebSocket("ws://127.0.0.1:3000/ws")
-    
+    this.connection = new WebSocket(((window.location.protocol === "https:") ? "wss://" : "ws://") + window.location.host + "/ws");
     this.connection.onmessage = function(event) {
       const zeroPadHex = (num, places) => String(num.toString(16)).padStart(places, '0');
       

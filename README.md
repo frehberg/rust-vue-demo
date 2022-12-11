@@ -2,7 +2,7 @@
 
 This project demonstrates the integration of npm/vue into a rust axum web-service. The web-service is self-contained, embedding the webui assets into the binary. The webui creates a websocket being used by the web-service to send data to the webui once per second.
 
-The Vue web framework does not require any template rendering during runtime in the web-service, in contrast to web frameworks such as boostrap, etc. Vue is based on static HTML/CSS/JS files, being delivered to web-browser as is. Costly DOM tree maniüpulation is handled by the web-browser.
+The Vue web framework does not require any template rendering during runtime in the web-service, in contrast to web frameworks such as bootstrap, etc. Vue is based on static HTML/CSS/JS files, being delivered to web-browser as is. Costly DOM tree manipulation is handled by the web-browser.
 
 ## Requirements
 * npm/nodes toolchain must be available

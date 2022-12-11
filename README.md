@@ -4,6 +4,8 @@ This project demonstrates the integration of npm/vue into a rust axum web-servic
 
 The Vue web framework does not require any template rendering during runtime in the web-service, in contrast to web frameworks such as bootstrap, etc. Vue is based on static HTML/CSS/JS files, being delivered to web-browser as is. Costly DOM tree manipulation is handled by the web-browser.
 
+Avoiding template engines in the web-service (template engines are performing runtime code generation), instead the Vue application and components represent a fixed code snapshot whose state transitions can be tested in the release-process. 
+
 ## Requirements
 * npm/nodes toolchain must be available
 * rust toolchain must be available
@@ -13,6 +15,7 @@ The Vue web framework does not require any template rendering during runtime in 
 * The `cargo build` will trigger the vue npm build process ('npm_rs'), the resulting HTML code will be placed in `webui/dist/`
 * The vue JavaScript assets of `webui/dist/` will be embedded into the Rust code (`rust_embed`)
 * No costly template rendering of web framework within web-service; all asset files are sent to web-brwoser as is. Costly template subsitution is performed during npm compile time and DOM tree manipulation is performed by web-browser.
+* No runtime code generation (no template engines), estability of Vue components. 
 * The compact executable will be created from Rust code
 * The binary will provide a web-service listening at port 3000 (`axum`)
 * When connecting with web-browser to service port, eg http://127.0.0.1:3000, a websocket will be established

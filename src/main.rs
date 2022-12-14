@@ -17,12 +17,10 @@ use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 use rust_embed::RustEmbed;
 
-use aquamarine::aquamarine;
-
 /// Diagrams
 ///
 /// Build Process
-#[cfg_attr(doc, aquamarine)]
+#[cfg_attr(doc, aquamarine::aquamarine)]
 /// ```mermaid
 /// graph
 ///    s([Rust Source]) --> m[[Rust macro processor]]
@@ -48,7 +46,6 @@ use aquamarine::aquamarine;
 ///      s -. read .-> db([Embedded Assets webui/dist])
 ///      end
 /// ```
-
 mod diagrams {}
 
 #[derive(RustEmbed)]
@@ -128,8 +125,14 @@ async fn main() {
         );
 
     // run it with hyper
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("listening on {}", addr);
+    const ANY_IP4 : [u8; 4] = [0, 0, 0, 0];
+    const LISTEN_PORT : u16 = 3000;
+    let addr = SocketAddr::from((ANY_IP4, LISTEN_PORT));
+
+    let primary_ip = local_ip().unwrap();
+    println!("listening on http://{}:{}", primary_ip, LISTEN_PORT);
+    println!("listening on http://127.0.0.1:{}", LISTEN_PORT);
+
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
@@ -147,12 +150,12 @@ async fn ws_handler(
     ws.on_upgrade(handle_socket)
 }
 
-fn create_txt(counter: u32, msg: &str) -> Result<String, ()> {
+fn create_txt(counter: &u32, msg: &str) -> Result<String, ()> {
     // Serialize data to a JSON string.
     let my_local_ip = local_ip().unwrap();
     let data = AppData {
         service_url: format!("http://{}:3000", my_local_ip),
-        counter: counter,
+        counter: counter.clone(),
         body: msg.to_string(),
     };
 
@@ -162,57 +165,80 @@ fn create_txt(counter: u32, msg: &str) -> Result<String, ()> {
     return Err(());
 }
 
+async fn handle_message(socket: &mut WebSocket, counter: &u32, msg: Message) -> bool {
+    match msg {
+        Message::Text(t) => {
+            println!("client sent: {:?}", t);
+            if let Ok(txt) = create_txt(counter, "Hello, too!") {
+                if socket
+                    .send(Message::Text(txt))
+                    .await
+                    .is_err() {
+                    println!("client disconnected");
+                    return true;
+                }
+            } else {
+                println!("internal error");
+                return false;
+            }
+        }
+        Message::Binary(_) => {
+            println!("client sent binary data");
+            return true;
+        }
+        Message::Ping(_) => {
+            println!("socket ping");
+            return true;
+        }
+        Message::Pong(_) => {
+            println!("socket pong");
+            return true;
+        }
+        Message::Close(_) => {
+            println!("client disconnected");
+            return false;
+        }
+    }
+    return true;
+}
+
+async fn handle_time_trigger(socket: &mut WebSocket, counter: &u32) -> bool {
+    println!("timer trigger");
+    if let Ok(txt) = create_txt(counter, "Hi") {
+        if socket
+            .send(Message::Text(txt))
+            .await
+            .is_err() {
+            println!("client disconnected");
+            return false;
+        }
+        return true;
+    } else {
+        println!("internal error");
+        return false;
+    }
+}
+
 async fn handle_socket(mut socket: WebSocket) {
     let mut counter = 0;
     loop {
         tokio::select! {
             Some(msg)  = socket.recv() => {
                  if let Ok(msg) = msg {
-                     match msg {
-                         Message::Text(t) => {
-                             println!("client sent str: {:?}", t);
-                             counter += 1;
-                             if let Ok(txt) = create_txt(counter, "Hello, too!") {
-                                 if socket
-                                    .send(Message::Text(txt))
-                                    .await
-                                    .is_err() {
-                                    println!("client disconnected");
-                                    return;
-                                 }
-                            }
-                         }
-                         Message::Binary(_) => {
-                            println!("client sent binary data");
-                         }
-                         Message::Ping(_) => {
-                             println!("socket ping");
-                         }
-                         Message::Pong(_) => {
-                             println!("socket pong");
-                         }
-                         Message::Close(_) => {
-                             println!("client disconnected");
-                             return;
-                         }
-                     }
+                    if ! handle_message(&mut socket, &counter, msg).await {
+                        return;
+                    }
+                    counter += 1;
                  } else {
                      println!("client disconnected");
                      return;
                  }
             }
             _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
-                 println!("timer trigger");
-                 counter += 1;
-               if let Ok(txt) = create_txt(counter, "Hi") {
-                 if socket
-                    .send(Message::Text(txt))
-                    .await
-                    .is_err() {
-                    println!("client disconnected");
+                 if ! handle_time_trigger(&mut socket, &counter).await {
                     return;
                  }
-                    }
+                 counter += 1;
             }
         }
     }

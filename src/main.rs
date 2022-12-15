@@ -1,3 +1,5 @@
+use std::env;
+use sscanf::sscanf;
 use axum::{
     body::{boxed, Full},
     extract::{
@@ -14,6 +16,9 @@ use local_ip_address::local_ip;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
+
+use futures_util::stream::StreamExt;
+use tokio_socketcan::{CANSocket, CANFrame};
 
 use rust_embed::RustEmbed;
 
@@ -36,6 +41,7 @@ use rust_embed::RustEmbed;
 /// ```mermaid
 /// graph LR
 ///      u[[WebUI]] --> s[[HTTP Service]]
+///      s <-- read-write --> c[[CAN Device]]
 ///      u <-. websocket .-> s
 ///
 ///      subgraph browser[Browser]
@@ -61,6 +67,15 @@ struct AppData {
 }
 
 static INDEX_HTML: &str = "index.html";
+static CANDEV_KEY: &str = "CANDEV";
+static CANDEV_DEFAULT: &str = "vcan0";
+
+fn candev() -> String {
+    return match env::var(CANDEV_KEY) {
+        Ok(val) => val.to_string(),
+        Err(_) => CANDEV_DEFAULT.to_string()
+    };
+}
 
 async fn static_handler(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
@@ -124,12 +139,12 @@ async fn main() {
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         );
 
-    // run it with hyper
-    const ANY_IP4 : [u8; 4] = [0, 0, 0, 0];
-    const LISTEN_PORT : u16 = 3000;
+    const ANY_IP4: [u8; 4] = [0, 0, 0, 0];
+    const LISTEN_PORT: u16 = 3000;
     let addr = SocketAddr::from((ANY_IP4, LISTEN_PORT));
 
     let primary_ip = local_ip().unwrap();
+    println!("Reading/Writing can device {}", candev());
     println!("listening on http://{}:{}", primary_ip, LISTEN_PORT);
     println!("listening on http://127.0.0.1:{}", LISTEN_PORT);
 
@@ -165,22 +180,31 @@ fn create_txt(counter: &u32, msg: &str) -> Result<String, ()> {
     return Err(());
 }
 
-async fn handle_message(socket: &mut WebSocket, counter: &u32, msg: Message) -> bool {
+fn parse_frame(t: String) -> Result<CANFrame, ()> {
+    if let Ok(parsed) = sscanf!(&t, "{u32:x}#{str}") {
+        let (id, hexdata) = parsed;
+        if let Ok(data) = hex::decode(hexdata.as_bytes()) {
+            if let Ok(frame) = CANFrame::new(id, &data, false, false) {
+                return Ok(frame);
+            }
+        }
+    }
+
+    return Err(());
+}
+
+async fn handle_message(can_tx: &CANSocket, msg: Message) -> bool {
     match msg {
         Message::Text(t) => {
             println!("client sent: {:?}", t);
-            if let Ok(txt) = create_txt(counter, "Hello, too!") {
-                if socket
-                    .send(Message::Text(txt))
-                    .await
-                    .is_err() {
-                    println!("client disconnected");
+            if let Ok(frame) = parse_frame(t) {
+                if let Ok(_) = can_tx.write_frame(frame).unwrap().await {
+                    println!("write frame succeeded");
                     return true;
                 }
-            } else {
-                println!("internal error");
-                return false;
             }
+            println!("internal error");
+            return false;
         }
         Message::Binary(_) => {
             println!("client sent binary data");
@@ -199,12 +223,11 @@ async fn handle_message(socket: &mut WebSocket, counter: &u32, msg: Message) -> 
             return false;
         }
     }
-    return true;
 }
 
 async fn handle_time_trigger(socket: &mut WebSocket, counter: &u32) -> bool {
     println!("timer trigger");
-    if let Ok(txt) = create_txt(counter, "Hi") {
+    if let Ok(txt) = create_txt(counter, "-") {
         if socket
             .send(Message::Text(txt))
             .await
@@ -219,20 +242,44 @@ async fn handle_time_trigger(socket: &mut WebSocket, counter: &u32) -> bool {
     }
 }
 
-async fn handle_socket(mut socket: WebSocket) {
+async fn handle_can_frame(socket: &mut WebSocket, counter: &u32, frame: CANFrame) -> bool {
+    let fmt = format!("{:x}#{:X?}", frame.id(), frame.data());
+    println!("received can frame {}", fmt);
+    if let Ok(txt) = create_txt(counter, &fmt) {
+        if socket
+            .send(Message::Text(txt))
+            .await
+            .is_err() {
+            println!("client disconnected");
+            return false;
+        }
+        return true;
+    } else {
+        println!("internal error");
+        return false;
+    }
+}
+
+async fn handle_socket_loop(mut socket: WebSocket, mut can_rx: CANSocket, can_tx: CANSocket) {
     let mut counter = 0;
+
     loop {
         tokio::select! {
             Some(msg)  = socket.recv() => {
                  if let Ok(msg) = msg {
-                    if ! handle_message(&mut socket, &counter, msg).await {
+                    if ! handle_message(&can_tx, msg).await {
                         return;
                     }
-                    counter += 1;
                  } else {
                      println!("client disconnected");
                      return;
                  }
+            }
+            Some(Ok(frame)) = can_rx.next() => {
+                 if ! handle_can_frame(&mut socket, &counter, frame).await {
+                     return;
+                }
+                counter += 1;
             }
             _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
                  if ! handle_time_trigger(&mut socket, &counter).await {
@@ -241,5 +288,19 @@ async fn handle_socket(mut socket: WebSocket) {
                  counter += 1;
             }
         }
+    }
+}
+
+async fn handle_socket(socket: WebSocket) {
+    // open canbus and loop
+    let can = candev();
+    if let Ok(can_rx) = CANSocket::open(&can) {
+        if let Ok(can_tx) = CANSocket::open(&can) {
+            handle_socket_loop(socket, can_rx, can_tx).await;
+        } else {
+            println!("canbus device not found {}", &can);
+        }
+    } else {
+        println!("canbus device not found {}", &can);
     }
 }

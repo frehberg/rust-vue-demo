@@ -61,9 +61,10 @@ struct Assets;
 // DTO - Data Transfer Object
 #[derive(Serialize, Deserialize, Debug)]
 struct AppData {
-    service_url: String,
-    counter: u32,
-    body: String,
+    id: u32,
+    service_url: Option<String>,
+    data: Option<String>,
+    notice: Option<String>,
 }
 
 static INDEX_HTML: &str = "index.html";
@@ -165,19 +166,17 @@ async fn ws_handler(
     ws.on_upgrade(handle_socket)
 }
 
-fn create_txt(counter: &u32, msg: &str) -> Result<String, ()> {
+fn json_message(id: &u32, data: Option<&str>, notice: Option<&str>) -> Result<String, ()> {
     // Serialize data to a JSON string.
     let my_local_ip = local_ip().unwrap();
     let data = AppData {
-        service_url: format!("http://{}:3000", my_local_ip),
-        counter: counter.clone(),
-        body: msg.to_string(),
+        id: id.clone(),
+        service_url: Some(format!("http://{}:3000", my_local_ip)),
+        data: data.map(|x| x.to_string()).or(None),
+        notice: notice.map(|x| x.to_string()).or(None),
     };
 
-    if let Ok(txt) = serde_json::to_string(&data) {
-        return Ok(txt);
-    }
-    return Err(());
+    serde_json::to_string(&data).map(|x| x).or(Err(()))
 }
 
 fn parse_frame(t: String) -> Result<CANFrame, ()> {
@@ -193,18 +192,48 @@ fn parse_frame(t: String) -> Result<CANFrame, ()> {
     return Err(());
 }
 
-async fn handle_message(can_tx: &CANSocket, msg: Message) -> bool {
+async fn write_frame(can_tx: Option<&CANSocket>, frame: CANFrame) -> bool {
+    match can_tx {
+        Some(tx) => {
+            if let Ok(_) = tx.write_frame(frame).unwrap().await {
+                println!("write frame succeeded");
+                return true;
+            } else {
+                println!("write frame failed");
+                return false;
+            }
+        }
+        _ => {
+            println!("could not write frame");
+            return false;
+        }
+    }
+}
+
+async fn handle_message(socket: &mut WebSocket, counter: &u32, can_tx: Option<&CANSocket>, msg: Message) -> bool {
     match msg {
         Message::Text(t) => {
             println!("client sent: {:?}", t);
             if let Ok(frame) = parse_frame(t) {
-                if let Ok(_) = can_tx.write_frame(frame).unwrap().await {
-                    println!("write frame succeeded");
-                    return true;
+                if !write_frame(can_tx, frame).await {
+                    let notice = Some("failed to write can frame");
+                    let data = None;
+                    if let Ok(txt) = json_message(counter, data, notice) {
+                        if socket
+                            .send(Message::Text(txt))
+                            .await
+                            .is_err() {
+                            println!("client disconnected");
+                            return false;
+                        }
+                    }
+                    return false;
                 }
+                return true;
+            } else {
+                println!("invalid CAN message");
+                return false;
             }
-            println!("internal error");
-            return false;
         }
         Message::Binary(_) => {
             println!("client sent binary data");
@@ -225,9 +254,8 @@ async fn handle_message(can_tx: &CANSocket, msg: Message) -> bool {
     }
 }
 
-async fn handle_time_trigger(socket: &mut WebSocket, counter: &u32) -> bool {
-    println!("timer trigger");
-    if let Ok(txt) = create_txt(counter, "-") {
+async fn send_status_update(socket: &mut WebSocket, counter: &u32, notice: Option<&str>) -> bool {
+    if let Ok(txt) = json_message(counter, None, notice) {
         if socket
             .send(Message::Text(txt))
             .await
@@ -240,12 +268,19 @@ async fn handle_time_trigger(socket: &mut WebSocket, counter: &u32) -> bool {
         println!("internal error");
         return false;
     }
+}
+
+async fn handle_time_trigger(socket: &mut WebSocket, counter: &u32) -> bool {
+    println!("time trigger - updating service url");
+    send_status_update(socket, counter, None).await
 }
 
 async fn handle_can_frame(socket: &mut WebSocket, counter: &u32, frame: CANFrame) -> bool {
-    let fmt = format!("{:x}#{:X?}", frame.id(), frame.data());
+    let fmt = format!("{:X}#{}", frame.id(), hex::encode(frame.data()));
     println!("received can frame {}", fmt);
-    if let Ok(txt) = create_txt(counter, &fmt) {
+    let notice = None;
+    let data = Some(fmt.as_str());
+    if let Ok(txt) = json_message(counter, data, notice) {
         if socket
             .send(Message::Text(txt))
             .await
@@ -260,47 +295,85 @@ async fn handle_can_frame(socket: &mut WebSocket, counter: &u32, frame: CANFrame
     }
 }
 
-async fn handle_socket_loop(mut socket: WebSocket, mut can_rx: CANSocket, can_tx: CANSocket) {
-    let mut counter = 0;
-
-    loop {
-        tokio::select! {
+async fn handle_event_ws_or_can(socket: &mut WebSocket, counter: &u32, can_rx: &mut CANSocket, can_tx: &CANSocket) -> bool {
+    tokio::select! {
             Some(msg)  = socket.recv() => {
                  if let Ok(msg) = msg {
-                    if ! handle_message(&can_tx, msg).await {
-                        return;
+                    if ! handle_message(socket, counter, Some(&can_tx), msg).await {
+                        return false;
                     }
                  } else {
                      println!("client disconnected");
-                     return;
+                     return false;
                  }
             }
             Some(Ok(frame)) = can_rx.next() => {
-                 if ! handle_can_frame(&mut socket, &counter, frame).await {
-                     return;
+                 if ! handle_can_frame(socket, &counter, frame).await {
+                     return false;
                 }
-                counter += 1;
             }
             _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
-                 if ! handle_time_trigger(&mut socket, &counter).await {
-                    return;
+                 if ! handle_time_trigger(socket, &counter).await {
+                    return false;
                  }
-                 counter += 1;
             }
         }
-    }
+    return true;
 }
 
-async fn handle_socket(socket: WebSocket) {
+async fn handle_event_ws(socket: &mut WebSocket, counter: &u32) -> bool {
+    tokio::select! {
+            Some(msg)  = socket.recv() => {
+                 if let Ok(msg) = msg {
+                    if ! handle_message(socket, counter, None, msg).await {
+                        return false;
+                    }
+                 } else {
+                     println!("client disconnected");
+                     return false;
+                 }
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+                 if ! handle_time_trigger(socket, &counter).await {
+                    return false;
+                 }
+            }
+        }
+    return true;
+}
+
+async fn handle_socket(mut socket: WebSocket) {
+    let mut counter: u32 = 0;
+
     // open canbus and loop
     let can = candev();
-    if let Ok(can_rx) = CANSocket::open(&can) {
-        if let Ok(can_tx) = CANSocket::open(&can) {
-            handle_socket_loop(socket, can_rx, can_tx).await;
-        } else {
-            println!("canbus device not found {}", &can);
+    let mut can_rx = CANSocket::open(&can);
+    let mut can_tx = CANSocket::open(&can);
+    let notice = if let Ok(_) = can_rx { None } else { Some("missing canbus device") };
+
+    if !send_status_update(&mut socket, &counter, notice).await {
+        return;
+    }
+
+    counter += 1;
+
+    loop {
+        match (&mut can_rx, &can_tx) {
+            (Ok(rx), Ok(tx)) => {
+                if !handle_event_ws_or_can(&mut socket, &mut counter,
+                                           rx, tx).await {
+                    return;
+                }
+            }
+            _ => {
+                println!("canbus device not found {}", &can);
+                if !handle_event_ws(&mut socket, &mut counter).await {
+                    return;
+                }
+                can_rx = CANSocket::open(&can);
+                can_tx = CANSocket::open(&can);
+            }
         }
-    } else {
-        println!("canbus device not found {}", &can);
+        counter += 1;
     }
 }

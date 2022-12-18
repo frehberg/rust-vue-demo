@@ -5,6 +5,7 @@
     <div class="my-2">
        URL: {{ service_url }}
     </div>
+    <p class="error" v-if="notice">{{ notice }}</p>
     <div class="h-0.5 bg-gray-200 w-36 mx-auto mt-2.5"></div>
 
     <form>
@@ -62,13 +63,21 @@ export default {
       const zeroPadHex = (num, places) => String(num.toString(16)).padStart(places, '0');
 
       console.log(event);
-      if (vm.messages.length > 20) {
-        vm.messages.shift();
-      }
-      let parsedMessage = JSON.parse(event.data);
+      let parsed = JSON.parse(event.data);
       vm.counter += 1;
-      vm.service_url = parsedMessage.service_url;
-      vm.messages.push("------>  " + zeroPadHex(vm.counter, 8) + ": " + parsedMessage.body)
+      vm.service_url = parsed.service_url;
+      if (parsed.data) {
+        if (vm.messages.length > 15) {
+          vm.messages.shift();
+        }
+        vm.messages.push("------>  "
+            + zeroPadHex(vm.counter, 8)
+            + ": " + parsed.data)
+      }
+
+      if (parsed.notice) {
+        vm.notice = parsed.notice
+      }
     }
 
     this.connection.onopen = function (event) {
@@ -88,6 +97,10 @@ export default {
   text-align: center;
   color: #2c3e50;
   margin-top: 60px;
+}
+
+.error {
+  color: red;
 }
 
 .message {

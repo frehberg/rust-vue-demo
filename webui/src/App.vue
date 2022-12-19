@@ -1,11 +1,9 @@
 <template>
   <el-config-provider namespace="ep">
-    <BaseHeader />
     <div style="display: flex">
       <BaseSide />
       <div>
-        <img alt="Vue logo" class="element-plus-logo" src="./assets/logo.png" />
-        <HelloWorld msg="Data Monitor" />
+        <MessageMonitor msg="Message Monitor" />
       </div>
     </div>
   </el-config-provider>
@@ -21,3 +19,6 @@
   width: 50%;
 }
 </style>
+<script setup lang="ts">
+import MessageMonitor from "~/components/MessageMonitor.vue";
+</script>

@@ -1,9 +1,9 @@
 {
-  "name": "element-plus-vite-starter",
+  "name": "rust-vue",
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "vite",
+    "serve": "vite",
     "build": "vite build",
     "generate": "vite-ssg build",
     "preview": "vite preview",

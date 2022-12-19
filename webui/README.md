@@ -1,4 +1,4 @@
-# webui-vue
+# webui
 
 ## Project setup
 ```

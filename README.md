@@ -15,7 +15,7 @@ Avoiding template engines in the web-service (template engines are performing ru
 * The `cargo build` will trigger the vue npm build process ('npm_rs'), the resulting HTML code will be placed in `webui/dist/`
 * The vue JavaScript assets of `webui/dist/` will be embedded into the Rust code (`rust_embed`)
 * No costly template rendering of web framework within web-service; all asset files are sent to web-brwoser as is. Costly template subsitution is performed during npm compile time and DOM tree manipulation is performed by web-browser.
-* No runtime code generation (no template engines), estability of Vue components. 
+* No runtime code generation (no template engines), instead using Vue components, achieving testability of frontend code. 
 * The compact executable will be created from Rust code
 * The binary will provide a web-service listening at port 3000 (`axum`)
 * When connecting with web-browser to service port, eg http://127.0.0.1:3000, a websocket will be established
@@ -42,12 +42,23 @@ cd rust-vue-demo/
 cargo build
 ```
 
+Set up the vcan0 device
+```shell
+sudo modprobe vcan
+sudo ip link add vcan0 type vcan
+sudo ip link set vcan0 up
+```
+
 Start the web-service
 ```shell
 cd rust-vue-demo/
-cargo run
+CANDEV="vcan0" cargo run
 ```
 
+Start the CAN bus dump tool
+```shell
+candump vcan0
+```
 Connect with web-browser to http://127.0.0.1:3000
 
 The Web-page will open in browser and will establish a websocket connection to ws://127.0.0.1:3000/ws. This websocket is used to send data updates between webui and web-service.

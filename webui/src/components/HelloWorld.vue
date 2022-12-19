@@ -1,58 +1,69 @@
-<template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
-  </div>
-</template>
+<script setup lang="ts">
+import { ref } from "vue";
+import { ElMessage } from 'element-plus'
 
-<script>
-export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
-  }
+defineProps<{ msg: string }>();
+
+const count = ref(0);
+const input = ref("element-plus");
+
+const curDate = ref('')
+
+const toast = () => {
+  ElMessage.success('Hello')
 }
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
+<template>
+  <h1>{{ msg }}</h1>
+
+  <p>
+    See
+    <a href="https://element-plus.org" target="_blank">element-plus</a> for
+    more information.
+  </p>
+
+  <!-- example components -->
+  <el-button @click="toast">El Message</el-button>
+  <el-button type="primary" @click="count++">count is: {{ count }}</el-button>
+  <el-button type="success" @click="count++">count is: {{ count }}</el-button>
+  <el-button type="warning" @click="count++">count is: {{ count }}</el-button>
+  <el-button type="danger" @click="count++">count is: {{ count }}</el-button>
+  <el-button type="info" @click="count++">count is: {{ count }}</el-button>
+  <br />
+  <el-input v-model="input" style="width: 200px; margin: 20px" />
+  <el-tag>Tag 1</el-tag>
+
+  <br />
+  <el-date-picker v-model="curDate" type="date" placeholder="Pick a day"></el-date-picker>
+
+  <p>For example, we can custom primary color to 'green'.</p>
+
+  <p>
+    Edit
+    <code>components/HelloWorld.vue</code> to test components.
+  </p>
+  <p>
+    Edit
+    <code>styles/element/var.scss</code> to test scss variables.
+  </p>
+
+  <p>
+    Full Example:
+    <a
+      href="https://github.com/element-plus/element-plus-vite-starter"
+      target="_blank"
+    >element-plus-vite-starter</a>
+    | On demand Example:
+    <a
+      href="https://github.com/element-plus/unplugin-element-plus"
+      target="_blank"
+    >unplugin-element-plus/examples/vite</a>
+  </p>
+</template>
+
+<style>
+.ep-button {
+  margin: 4px;
 }
 </style>

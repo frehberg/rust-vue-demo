@@ -23,22 +23,14 @@ use tokio_socketcan::{CANSocket, CANFrame, Error};
 use rust_embed::RustEmbed;
 use crate::State::ClientWsDisconnected;
 
-/// Diagrams
-///
-/// Build Process
+
 #[cfg_attr(doc, aquamarine::aquamarine)]
-/// ```mermaid
-/// graph
-///    s([Rust Source]) --> m[[Rust macro processor]]
-///    v([Vue App]) --> b[[build-script invokes npm build]]
-///    i([Rust intermediate code]) --> f([executable])
-///    subgraph rustc[Rust Compiler]
-///       b -. generate files .-> d([webui/dist])
-///       d -. include .-> m
-///       m --> i
-///    end
-/// ```
-/// Client Server Communication
+/// WebBased Client Server Communication
+///
+/// Author: Frank Rehberger
+///
+/// Repo: https://github.com/frehberg/rust-vue-demo
+///
 /// ```mermaid
 /// graph LR
 ///      u[[WebUI]] --> s[[HTTP Service]]
@@ -53,7 +45,101 @@ use crate::State::ClientWsDisconnected;
 ///      s -. read .-> db([Embedded Assets webui/dist])
 ///      end
 /// ```
-mod diagrams {}
+mod slide1 {}
+
+#[cfg_attr(doc, aquamarine::aquamarine)]
+/// Components
+///
+/// Repo: https://github.com/frehberg/rust-vue-demo
+///
+/// MessageMonitor displaying  CANBUS frames asynchronously in WebUI
+/// * Axum: Tokio web application framework
+/// * VueJS: JavaScript framework for building user interfaces
+///
+/// ```mermaid
+/// graph BT
+///   SocketCan --> Rust((Rust Backend App))
+///   RustDoc[[RustDoc]] --> Rust
+///   RustEmbed[RustEmbed] --> Rust
+///   Axum[Axum] --> Rust
+///   WebSocket -.- Axum
+///   Aquamarine --> RustDoc
+///   MermaidJS -.- Aquamarine
+///   VueJS[VueJS/UI Framework] --> UI
+///   NPM[NPM Build Env] --> UI((Web User Interface))
+///   Element-Plus --> VueJS
+///   Rust --> MessageMonitor((Message Monitor App))
+///   UI --> MessageMonitor
+/// ```
+mod slide2 {}
+
+/// Project Files
+///
+/// Vue/Node.JS proect in directory webui/
+///
+/// npm artifacts will be stored at webui/dist
+///
+/// ```text
+/// ├── build.rs
+/// ├── Cargo.toml
+/// ├── LICENSE
+/// ├── package-lock.json
+/// ├── README.md
+/// ├── src
+/// │ └── main.rs
+/// └── webui
+///     ├── index.html
+///     ├── package.json
+///     ├── package-lock.json
+///     ├── public
+///     │ ├── CNAME
+///     │ ├── element-plus-logo-small.svg
+///     │ └── favicon.svg
+///     ├── README.md
+///     ├── src
+///     │ ├── App.vue
+///     │ ├── assets
+///     │ │ └── logo.png
+///     │ ├── components
+///     │ │ ├── layouts
+///     │ │ │ └── BaseSide.vue
+///     │ │ └── MessageMonitor.vue
+///     │ ├── components.d.ts
+///     │ ├── composables
+///     │ │ ├── dark.ts
+///     │ │ └── index.ts
+///     │ ├── env.d.ts
+///     │ ├── main.ts
+///     │ └── styles
+///     │     ├── element
+///     │     │ ├── dark.scss
+///     │     │ └── index.scss
+///     │     └── index.scss
+///     ├── tsconfig.json
+///     └── vite.config.ts
+///```
+mod slide3 {}
+
+#[cfg_attr(doc, aquamarine::aquamarine)]
+/// Build Process
+///
+/// Repo: https://github.com/frehberg/rust-vue-demo
+///
+/// ```mermaid
+///  graph
+///     s([Rust Source]) --> m[[Rust macro processor]]
+///     v([Vue App]) --> b[[build-script invokes npm build]]
+///
+///     c[[Rust compiler/linker]]--> f([executable])
+///     subgraph rustc[Cargo Builder]
+///        b -. generate files .-> d([webui/dist])
+///        d -. include .-> m
+///        m -->  i([Rust intermediate code])
+///        i --> c
+///     end
+/// ```
+mod slide4 {}
+
 
 #[derive(RustEmbed)]
 #[folder = "webui/dist/"]
@@ -198,7 +284,7 @@ fn parse_frame(t: String) -> Result<CANFrame, ()> {
     return Err(());
 }
 
-async fn send_ws_message(socket: &mut WebSocket, data: Option<&str>,notice: Option<&str>) -> State {
+async fn send_ws_message(socket: &mut WebSocket, data: Option<&str>, notice: Option<&str>) -> State {
     if let Ok(txt) = json_message(data, notice) {
         if socket
             .send(Message::Text(txt))
@@ -233,7 +319,7 @@ async fn handle_message(_socket: &mut WebSocket, can_tx: Option<&CANSocket>, msg
         Message::Text(t) => {
             println!("client sent: {:?}", t);
             if let Ok(frame) = parse_frame(t) {
-                return write_frame(can_tx, frame).await ;
+                return write_frame(can_tx, frame).await;
             } else {
                 return State::InternalError;
             }
@@ -266,7 +352,6 @@ async fn handle_can_frame(socket: &mut WebSocket, frame: CANFrame) -> State {
     let fmt = format!("{:X}#{}", frame.id(), hex::encode(frame.data()));
     println!("received can frame {}", fmt);
     return send_ws_message(socket, Some(&fmt), None).await;
-
 }
 
 async fn handle_event_ws_or_can(socket: &mut WebSocket, can_rx: &mut CANSocket, can_tx: &CANSocket) -> State {

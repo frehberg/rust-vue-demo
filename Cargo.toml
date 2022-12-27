@@ -17,7 +17,7 @@ tokio-socketcan = "^0.3"
 futures-util = "^0.3"
 sscanf = "^0.4"
 hex = "^0.4"
-aquamarine = "0.1.12"
+aquamarine = { version = "0.1.13", path = "../aquamarine" }
 
 [build-dependencies]
 npm_rs = "1.0.0"

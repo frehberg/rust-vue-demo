@@ -2,7 +2,7 @@
   <el-config-provider namespace="ep">
     <div style="display: flex">
       <BaseSide />
-      <div>
+      <div style="margin: 0 auto">
         <MessageMonitor msg="Message Monitor" />
       </div>
     </div>

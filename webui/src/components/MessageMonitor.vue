@@ -72,20 +72,23 @@ const toast = (msg) => {
 </script>
 
 <template>
-  <h1>{{ msg }}</h1>
-  <p>
-    <el-progress type="circle" :percentage="activity" :color="colors" :width="25"/>
-    URL: {{ service_url }}
-  </p>
-  <el-divider border-style="dashed"/>
-  <!-- example components -->
-  <el-input v-model="outframe" style="width: 200px; margin: 20px" type="text" placeholder="Id#Data"/>
-  <el-button @click="sendFrame">Send Frame</el-button>
-  <el-table :data="frames" border style="width: 100%" max-height="600">
-    <el-table-column prop="id" label="ID" width="180"/>
-    <el-table-column prop="frame" label="Frame"/>
-  </el-table>
-
+  <div style="margin: 0 auto">
+    <h1>{{ msg }}</h1>
+    <p>
+      <el-progress type="circle" :percentage="activity" :color="colors" :width="25"/>
+      URL: {{ service_url }}
+    </p>
+    <el-divider border-style="dashed"/>
+    <!-- example components -->
+    <div style="display: flex; column-gap: 10px; margin: 20px 0">
+      <el-input v-model="outframe" style="width: 200px;" type="text" placeholder="Id#Data"/>
+      <el-button @click="sendFrame">Send Frame</el-button>
+    </div>
+    <el-table :data="frames" border style="width: 100%" max-height="600">
+      <el-table-column prop="id" label="ID" width="180"/>
+      <el-table-column prop="frame" label="Frame"/>
+    </el-table>
+  </div>
 </template>
 
 <style>
